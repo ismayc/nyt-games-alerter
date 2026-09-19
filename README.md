@@ -62,7 +62,7 @@ R/
   detect.R    pure logic: does a Wordle match, does a grid have a rebus
   fetch.R     the NYT JSON endpoints, with ret/backoff and date checks
   state.R     per-day record of what was checked and emailed (send-once)
-  notify.R    Gmail auth (copied from lottery-invoice-submission) and the email
+  notify.R    Gmail auth (copied from a sibling alert job) and the email
   run.R       one pass over the day's checks
   history.R   data/history.csv: append today, backfill the last 60 days
   report.R    build report/index.html (two-tab interactive page) from the CSV
