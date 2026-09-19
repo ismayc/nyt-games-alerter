@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.chesterismay.nyt-games-alert</string>
+
+  <!-- Emails Chester when today's NYT crossword, Mini, or Midi has a rebus, or
+       today's Wordle fits the pattern in R/config.R. Also appends the day to
+       data/history.csv and rebuilds report/index.html.
+
+       Uses the same Rscript binary as the sibling alert job, which already
+       reads the Gmail token under launchd on this Mac.
+
+       Before installing, replace /Users/YOU and the repo path below with your
+       own absolute paths (launchd does not expand ~). -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Library/Frameworks/R.framework/Resources/bin/Rscript</string>
+    <string>/Users/YOU/path/to/nyt-games-alerter/scripts/check_today.R</string>
+  </array>
+
+  <!-- Three runs, Phoenix time, no DST to drift. The 05:07 run is the real
+       one. 08:07 and 11:07 exist for the mornings when the lid was shut or the
+       network was not up yet: a check that already succeeded is skipped and a
+       finding already emailed is never sent again, so the extra runs cost one
+       state-file read. 11:07 is also when a check that is still failing gets a
+       failure email (FAILURE_EMAIL_HOUR in R/run.R; keep the two in step).
+       launchd runs a missed time once on wake. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key><integer>5</integer>
+      <key>Minute</key><integer>7</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>8</integer>
+      <key>Minute</key><integer>7</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>11</integer>
+      <key>Minute</key><integer>7</integer>
+    </dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>/Users/YOU/Library/Logs/nyt-games-alert/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/YOU/Library/Logs/nyt-games-alert/launchd.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/YOU</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

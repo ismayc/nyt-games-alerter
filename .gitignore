@@ -1,0 +1,17 @@
+# Backfill part files: intermediate, merged into history.csv by --merge.
+data/backfill-*.csv
+data/*.tmp
+
+# Editor and OS cruft
+.DS_Store
+.Rhistory
+.RData
+
+# Claude Code session state
+.claude/
+
+# Local Netlify folder
+.netlify
+
+# Local, machine-specific config (emails, token path)
+R/config.local.R
