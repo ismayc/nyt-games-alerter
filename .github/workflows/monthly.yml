@@ -34,8 +34,14 @@ jobs:
           r-version: release
           use-public-rspm: true
 
+      - name: System libraries (fallback if a source build is needed)
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+
       - name: Install R dependencies
-        run: Rscript -e 'install.packages(c("httr", "jsonlite"), repos = "https://packagemanager.posit.co/cran/latest")'
+        run: |
+          Rscript -e 'install.packages(c("httr", "jsonlite"))' \
+                  -e 'ok <- c("httr","jsonlite") %in% rownames(installed.packages())' \
+                  -e 'if (!all(ok)) stop("missing R packages: ", paste(c("httr","jsonlite")[!ok], collapse=", "))'
 
       - name: Refresh data and rebuild report
         run: Rscript scripts/refresh_and_build.R
