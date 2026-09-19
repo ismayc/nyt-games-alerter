@@ -328,6 +328,16 @@ footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--lin
 footer a:hover{border-color:var(--accent);color:var(--accent)}
 .foot-note{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
 
+/* day lookup */
+.lookup{margin-top:24px;max-width:60ch}
+.lookup input[type=date]{font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);width:100%;max-width:280px}
+.lookup input[type=date]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+.lk-result{margin-top:16px;padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:17px;line-height:1.5}
+.lk-result b{color:var(--ink)}
+.lk-result.yes{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.lk-result.yes b:first-child{color:var(--accent)}
+.lk-result:empty{display:none}
+
 /* tooltip */
 #tip{position:fixed;z-index:30;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;box-shadow:var(--shadow);max-width:260px;display:none}
 #tip b{display:block;font-size:15px}
@@ -383,6 +393,21 @@ var so=new IntersectionObserver(function(es){es.forEach(function(e){
 if(e.isIntersecting){steps.forEach(function(s){s.classList.remove("on");});e.target.classList.add("on");setDecade(e.target.getAttribute("data-decade"));}
 });},{rootMargin:"-45% 0px -45% 0px"});
 steps.forEach(function(s){so.observe(s);});
+}
+
+var RB=window.RB_DATA,lkI=D.getElementById("lk-date"),lkO=D.getElementById("lk-result");
+if(RB&&lkI&&lkO){
+var fmt=function(iso){var dt=new Date(iso+"T00:00:00");return dt.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});};
+var look=function(){
+var d=lkI.value;if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)){lkO.className="lk-result";lkO.innerHTML="";return;}
+var yes=false,html;
+if(d<RB.min||d>RB.max){html="<b>Outside the data.</b> Days run "+fmt(RB.min)+" to "+fmt(RB.max)+".";}
+else{var e=RB.days[d];
+if(e&&e[0]>0){yes=true;html="<b>Yes, a rebus.</b> "+fmt(d)+" had <b>"+e[0]+"</b> rebus square"+(e[0]==1?"":"s")+(e[1]>0?", plus "+e[1]+" alternate-answer square"+(e[1]==1?"":"s"):"")+".";}
+else if(e&&e[1]>0){html="<b>No rebus,</b> but a gimmick: "+fmt(d)+" had <b>"+e[1]+"</b> alternate-answer square"+(e[1]==1?"":"s")+".";}
+else{html="<b>No rebus.</b> "+fmt(d)+" was a clean grid.";}}
+lkO.className="lk-result"+(yes?" yes":"");lkO.innerHTML=html;};
+lkI.addEventListener("input",look);lkI.addEventListener("change",look);look();
 }
 
 var tabs=D.querySelectorAll(".tab"),panels={};
@@ -585,6 +610,16 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
   }, character(1))
   small_cw <- nrow(history[history$game %in% c("mini", "midi"), ])
 
+  # -- day lookup: embed only the days with a rebus or a gimmick, plus range ---
+  lk   <- daily[daily$rebus_cells > 0 | (!is.na(daily$gimmick_cells) & daily$gimmick_cells > 0), ]
+  lk_g <- ifelse(is.na(lk$gimmick_cells), 0L, lk$gimmick_cells)
+  lookup_json    <- paste0("{", paste(sprintf('"%s":[%d,%d]', lk$date, lk$rebus_cells, lk_g), collapse = ","), "}")
+  daily_min      <- min(daily$date)
+  daily_max      <- max(daily$date)
+  lookup_default <- max(rebuses$date)
+  data_script    <- sprintf('<script>window.RB_DATA={min:"%s",max:"%s",days:%s};</script>',
+                            daily_min, daily_max, lookup_json)
+
   # -- stat bands --------------------------------------------------------------
   rebus_stats <- paste0(
     stat(nrow(daily), "Daily crosswords analyzed",
@@ -640,6 +675,12 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
             span_years, one_in),
     '<div class="stats" data-reveal>', rebus_stats, "</div>",
     "</header>",
+
+    '<section><div class="section-head"><h2>Was there a rebus on a given day?</h2>',
+    sprintf('<p class="sub">Pick any date from %s to %s. The daily crossword is checked for a rebus (a square holding more than one letter) and for an alternate-answer gimmick.</p></div>',
+            nice_date(daily_min), nice_date(daily_max)),
+    sprintf('<div class="lookup"><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Pick a date"><div id="lk-result" class="lk-result" role="status"></div></div></section>',
+            daily_min, daily_max, lookup_default),
 
     '<section><div class="section-head"><h2>', esc(weekday_title), "</h2>",
     '<p class="sub">Share of daily crosswords with at least one rebus square, by day of the week. Puzzles get harder from Monday to Saturday; Sunday is larger and about Thursday difficulty.</p></div>',
@@ -748,7 +789,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
 
   page <- paste0(head, topbar, rebus_panel, wordle_panel, footer,
                  '<div id="tip" role="status"><b></b><span></span></div>',
-                 "</main><script>", REPORT_JS, "</script></body></html>")
+                 "</main>", data_script, "<script>", REPORT_JS, "</script></body></html>")
 
   if (!dir.exists(dirname(out))) dir.create(dirname(out), recursive = TRUE)
   tmp <- paste0(out, ".tmp")
