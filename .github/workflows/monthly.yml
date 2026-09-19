@@ -50,7 +50,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.csv report/index.html
+          git add data/history.csv data/difficulty.csv report/index.html
           if git diff --cached --quiet; then
             echo "Nothing changed this month."
           else

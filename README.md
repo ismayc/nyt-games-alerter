@@ -25,7 +25,11 @@ covers how often the crossword hides a rebus, by weekday and year, with a
 pinned decade heat grid, plus a count of *gimmick* squares (see below). The
 **Wordle** tab covers how often the answer fits the pattern, plus "what makes a
 Wordle nasty": repeated letters, rare letters, and the one-blank look-alike
-families players complain about.
+families players complain about. A **Difficulty** tab shows a calendar heat map
+of how hard each daily crossword was versus a normal puzzle for that weekday,
+using community solve-time data from [XW Stats](https://xwstats.com) (credited
+on the page). The Rebus tab also has a date lookup: pick any day and see whether
+it had a rebus.
 
 The analysis is refreshed on the first of each month by a GitHub Actions
 workflow (`.github/workflows/monthly.yml`), which fetches any missing recent
@@ -65,19 +69,22 @@ R/
   notify.R    Gmail auth (copied from a sibling alert job) and the email
   run.R       one pass over the day's checks
   history.R   data/history.csv: append today, backfill the last 60 days
-  report.R    build report/index.html (two-tab interactive page) from the CSV
+  difficulty.R data/difficulty.csv: per-day crossword difficulty from XW Stats
+  report.R    build report/index.html (interactive, tabbed page) from the CSVs
 scripts/
-  check_today.R       launchd entry point (alert, then history, then report)
-  backfill_history.R  one-time archive download into data/backfill-*.csv
-  backfill_gimmicks.R one-time re-scan of every crossword to fill gimmick_cells
-  build_report.R      rebuild the report from the CSV, no network
-  refresh_and_build.R fetch missing days and rebuild, no email (used by CI)
+  check_today.R        launchd entry point (alert, then history, then report)
+  backfill_history.R   one-time archive download into data/backfill-*.csv
+  backfill_gimmicks.R  one-time re-scan of every crossword to fill gimmick_cells
+  backfill_difficulty.R one-time gentle scrape of XW Stats into difficulty.csv
+  build_report.R       rebuild the report from the CSVs, no network
+  refresh_and_build.R  fetch missing days, top up difficulty, rebuild (used by CI)
 .github/workflows/
   monthly.yml         first-of-month cloud refresh, commit, and Netlify deploy
 launchd/
   com.chesterismay.nyt-games-alert.plist  daily alert + rebuild on the Mac
 data/
   history.csv         one row per game per date
+  difficulty.csv      per-date crossword difficulty scraped from XW Stats
   wordle-answers.txt  the original Wordle answer list, for the report's stats
 report/
   index.html  the built page

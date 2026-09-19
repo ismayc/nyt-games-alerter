@@ -175,6 +175,33 @@ MARK <- paste0('<svg class="mark" viewBox="0 0 32 32" width="22" height="22" ari
                '<rect x="4.5" y="17.5" width="10" height="10" rx="2.5" fill="currentColor" opacity=".55"/>',
                '<rect x="17.5" y="17.5" width="10" height="10" rx="2.5" fill="var(--accent)"/></svg>')
 
+# GitHub-style heatmap for one year: 7 rows (Sun..Sat) by week. Cell color
+# diverges by vs_weekday: the cool hue for easier than a normal weekday, the
+# accent for harder. dmap is an environment keyed by date -> list(vs, label).
+diff_year_heatmap <- function(year, dmap) {
+  jan1  <- as.Date(sprintf("%d-01-01", year))
+  last  <- min(as.Date(sprintf("%d-12-31", year)), Sys.Date())
+  days  <- seq(jan1, last, by = "day")
+  pad   <- as.integer(format(jan1, "%w"))            # 0=Sun: leading blanks
+  slots <- c(rep(NA_character_, pad), format(days))
+  cells <- vapply(slots, function(ds) {
+    if (is.na(ds)) return('<div class="hcell pad"></div>')
+    e <- if (exists(ds, envir = dmap, inherits = FALSE)) get(ds, envir = dmap) else NULL
+    if (is.null(e)) {
+      return(sprintf('<div class="hcell" tabindex="0" data-tip="%s"></div>',
+                     esc(sprintf("No data yet|%s", nice_date(ds)))))
+    }
+    mix <- min(88L, as.integer(round(abs(e$vs) * 2.4)))
+    hue <- if (e$vs > 0) "--accent" else "--cool"
+    tip <- esc(sprintf("%s|%s, %d%% %s than a typical %s", e$label, nice_date(ds),
+                       abs(e$vs), if (e$vs > 0) "slower" else "faster", format(as.Date(ds), "%A")))
+    sprintf('<div class="hcell" tabindex="0" style="--c:color-mix(in srgb,var(%s) %d%%,var(--surface-2))" data-tip="%s"></div>',
+            hue, mix, tip)
+  }, character(1))
+  sprintf('<div class="hyear"><div class="hylabel">%d</div><div class="hgrid">%s</div></div>',
+          year, paste(cells, collapse = ""))
+}
+
 # ---- page -------------------------------------------------------------------
 
 REPORT_CSS <- '
@@ -185,7 +212,7 @@ color-scheme:light;
 --page:#f3f4f6;--surface:#ffffff;--surface-2:#fafbfc;
 --ink:#161a22;--ink-2:#565d6b;--muted:#8b93a2;
 --line:#e4e7ec;--axis:#c8cdd6;--bar-neutral:#c6ccd6;
---accent:#e8560d;--on-accent:#ffffff;--green:#4f9d5a;--hot-ink:#ffffff;
+--accent:#e8560d;--on-accent:#ffffff;--green:#4f9d5a;--hot-ink:#ffffff;--cool:#2f77c0;
 --shadow:0 1px 2px rgba(22,26,34,.05),0 18px 40px -24px rgba(22,26,34,.4);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -193,7 +220,7 @@ color-scheme:dark;
 --page:#0e1014;--surface:#161a20;--surface-2:#1b2028;
 --ink:#f2f3f6;--ink-2:#aab0bc;--muted:#6f7787;
 --line:#272c35;--axis:#3a4049;--bar-neutral:#39404b;
---accent:#ff7a33;--on-accent:#20120a;--green:#5cae67;--hot-ink:#ffffff;
+--accent:#ff7a33;--on-accent:#20120a;--green:#5cae67;--hot-ink:#ffffff;--cool:#4a97dd;
 --shadow:0 1px 2px rgba(0,0,0,.4),0 22px 48px -26px rgba(0,0,0,.75);
 }}
 :root[data-theme="dark"]{
@@ -201,7 +228,7 @@ color-scheme:dark;
 --page:#0e1014;--surface:#161a20;--surface-2:#1b2028;
 --ink:#f2f3f6;--ink-2:#aab0bc;--muted:#6f7787;
 --line:#272c35;--axis:#3a4049;--bar-neutral:#39404b;
---accent:#ff7a33;--on-accent:#20120a;--green:#5cae67;--hot-ink:#ffffff;
+--accent:#ff7a33;--on-accent:#20120a;--green:#5cae67;--hot-ink:#ffffff;--cool:#4a97dd;
 --shadow:0 1px 2px rgba(0,0,0,.4),0 22px 48px -26px rgba(0,0,0,.75);
 }
 *{box-sizing:border-box}
@@ -337,6 +364,20 @@ footer a:hover{border-color:var(--accent);color:var(--accent)}
 .lk-result.yes{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .lk-result.yes b:first-child{color:var(--accent)}
 .lk-result:empty{display:none}
+
+/* difficulty calendar */
+.cal-wrap{overflow-x:auto;margin-top:20px;padding-bottom:6px}
+.hyear{display:flex;gap:16px;align-items:center;margin:9px 0}
+.hylabel{width:46px;flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:14px;font-weight:600}
+.hgrid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:3px}
+.hcell{width:13px;height:13px;border-radius:3px;background:var(--c,var(--surface-2));border:1px solid var(--line);outline:none}
+.hcell.pad{background:transparent;border:0}
+.hcell[data-tip]:hover,.hcell[data-tip]:focus-visible{box-shadow:0 0 0 2px var(--axis)}
+.cal-legend{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+.cal-legend .sw{width:15px;height:15px;border-radius:3px;border:1px solid var(--line)}
+.cal-src{margin-top:14px;font-size:13px;color:var(--muted)}
+.cal-src a{color:var(--muted);border-bottom:1px solid var(--line)}
+.cal-src a:hover{color:var(--accent);border-color:var(--accent)}
 
 /* tooltip */
 #tip{position:fixed;z-index:30;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;box-shadow:var(--shadow);max-width:260px;display:none}
@@ -620,6 +661,33 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
   data_script    <- sprintf('<script>window.RB_DATA={min:"%s",max:"%s",days:%s};</script>',
                             daily_min, daily_max, lookup_json)
 
+  # -- difficulty calendar (from data/difficulty.csv, scraped from XW Stats) ----
+  diff_df   <- if (exists("read_difficulty")) tryCatch(read_difficulty(), error = function(e) NULL) else NULL
+  have_diff <- !is.null(diff_df) && nrow(diff_df) && any(!is.na(diff_df$vs_weekday))
+  difficulty_panel <- if (have_diff) {
+    dd   <- diff_df[!is.na(diff_df$vs_weekday), ]
+    dmap <- new.env(parent = emptyenv())
+    for (i in seq_len(nrow(dd))) assign(dd$date[i], list(vs = dd$vs_weekday[i], label = dd$difficulty[i]), envir = dmap)
+    years    <- sort(unique(as.integer(substr(dd$date, 1, 4))), decreasing = TRUE)
+    heatmaps <- paste(vapply(years, function(y) diff_year_heatmap(y, dmap), character(1)), collapse = "")
+    n_hard   <- sum(dd$vs_weekday > 0); n_easy <- sum(dd$vs_weekday < 0)
+    sw <- function(hue, pct) sprintf('<span class="sw" style="background:color-mix(in srgb,var(%s) %d%%,var(--surface-2))"></span>', hue, pct)
+    paste0(
+      '<div class="panel" id="panel-difficulty" role="tabpanel">',
+      '<header class="whero"><h1 class="hero-title">How hard was each day, really?</h1>',
+      sprintf('<p class="lede">Each square is a daily crossword, shaded by how the median solver did against their own average for that <b>weekday</b>: cooler is easier than a normal day, warmer is harder. %s days have a difficulty read so far.</p></header>',
+              comma(nrow(dd))),
+      '<section><div class="section-head"><h2>The difficulty calendar</h2>',
+      '<p class="sub">Newest year first. Hover or focus a square for the day, its rating, and how far it ran from a typical puzzle on that weekday.</p></div>',
+      '<div class="cal-legend"><span>Easier</span>', sw("--cool", 82), sw("--cool", 40),
+      '<span class="sw" style="background:var(--surface-2)"></span>', sw("--accent", 40), sw("--accent", 82),
+      '<span>Harder</span></div>',
+      '<div class="cal-wrap">', heatmaps, '</div>',
+      sprintf('<p class="cal-src">Difficulty from <a href="https://xwstats.com">XW Stats</a>, which aggregates community solve times. %s puzzles ran harder than their weekday norm, %s easier. Not every day has enough solves yet.</p>',
+              comma(n_hard), comma(n_easy)),
+      '</section></div>')
+  } else ""
+
   # -- stat bands --------------------------------------------------------------
   rebus_stats <- paste0(
     stat(nrow(daily), "Daily crosswords analyzed",
@@ -665,6 +733,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     '<div class="tabs" role="tablist" aria-label="Choose a game">',
     '<button class="tab" role="tab" data-tab="rebus" aria-selected="true">Rebus</button>',
     '<button class="tab" role="tab" data-tab="wordle" aria-selected="false">Wordle</button>',
+    if (have_diff) '<button class="tab" role="tab" data-tab="difficulty" aria-selected="false">Difficulty</button>' else "",
     '</div></div>')
 
   rebus_panel <- paste0(
@@ -787,7 +856,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     sprintf('<div class="foot-note"><span>Refreshed on the first of each month. Last built %s.</span><span>Answers are shown only after their day has passed.</span></div>', built),
     '</footer>')
 
-  page <- paste0(head, topbar, rebus_panel, wordle_panel, footer,
+  page <- paste0(head, topbar, rebus_panel, wordle_panel, difficulty_panel, footer,
                  '<div id="tip" role="status"><b></b><span></span></div>',
                  "</main>", data_script, "<script>", REPORT_JS, "</script></body></html>")
 

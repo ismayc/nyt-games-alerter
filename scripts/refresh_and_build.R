@@ -7,9 +7,10 @@
 
 args <- commandArgs(trailingOnly = FALSE)
 REPO_ROOT <- normalizePath(file.path(dirname(sub("^--file=", "", args[grepl("^--file=", args)])), ".."))
-for (f in c("config.R", "detect.R", "fetch.R", "notify.R", "history.R", "report.R")) {
+for (f in c("config.R", "detect.R", "fetch.R", "notify.R", "history.R", "difficulty.R", "report.R")) {
   source(file.path(REPO_ROOT, "R", f))
 }
 
 update_history(Sys.Date())   # append missing days (fills rebus_cells and gimmick_cells)
+topup_difficulty()           # refresh recent crossword difficulty from XW Stats (gentle)
 build_report()

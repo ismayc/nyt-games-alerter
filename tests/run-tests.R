@@ -2,7 +2,7 @@
 # Rscript tests/run-tests.R   (from the repo root)
 REPO_ROOT <- getwd()
 for (f in c("config.R", "detect.R", "fetch.R", "state.R", "notify.R", "run.R",
-            "history.R", "report.R")) {
+            "history.R", "report.R", "difficulty.R")) {
   source(file.path("R", f))
 }
 # Keep test runs out of the real log.
