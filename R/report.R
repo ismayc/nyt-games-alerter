@@ -253,6 +253,7 @@ a{color:var(--accent);text-underline-offset:2px}
 .lk-line b{color:var(--ink);font-weight:600}
 .lk-line mark{background:transparent;color:var(--accent);font-weight:600}
 .lk-line mark b{color:inherit}
+.lk-sw{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--line);background:var(--dcol,var(--surface-2));vertical-align:-1px;margin-right:5px}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:16px;color:var(--ink)}
 .brand .mark{flex:0 0 auto;color:var(--ink)}
 .tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px}
@@ -377,7 +378,12 @@ footer a:hover{border-color:var(--accent);color:var(--accent)}
 .lk-result:empty{display:none}
 
 /* difficulty calendar */
-.cal-wrap{overflow-x:auto;margin-top:20px;padding-bottom:6px}
+.cal-hint{display:flex;align-items:center;gap:6px;margin:14px 0 0;font-size:12.5px;color:var(--ink-2)}
+.cal-hint[hidden]{display:none}
+.cal-arrow{font-size:15px;line-height:1;color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){.cal-arrow{animation:calnudge 1.4s ease-in-out infinite}}
+@keyframes calnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+.cal-wrap{overflow-x:auto;margin-top:12px;padding-bottom:6px}
 .hyear{display:flex;gap:16px;align-items:center;margin:9px 0}
 .hylabel{width:46px;flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:14px;font-weight:600}
 .hgrid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:3px}
@@ -462,15 +468,23 @@ else P.push("<b>Crossword:</b> clean grid, no rebus");
 }else P.push("<b>Crossword:</b> no data for this day");
 if(LK.wMin&&d>=LK.wMin&&d<=LK.wMax)P.push(LK.wordle[d]?"<mark><b>Wordle:</b> fit a tracked pattern</mark>":"<b>Wordle:</b> no pattern match");
 else P.push("<b>Wordle:</b> no puzzle tracked");
+var dcol="var(--surface-2)";
 if(LK.dMin&&d>=LK.dMin&&d<=LK.dMax){var f=LK.diff[d];
-if(f)P.push("<b>Difficulty:</b> "+DLAB[f[1]]+", "+Math.abs(f[0])+"% "+(f[0]>0?"harder":"easier")+" than a typical "+wd(d));
+if(f){var vs=f[0],mix=Math.min(88,Math.round(Math.abs(vs)*2.4)),hue=vs>0?"--accent":"--cool";
+dcol="color-mix(in srgb,var("+hue+") "+mix+"%,var(--surface-2))";
+P.push("<b>Difficulty:</b> <span class=lk-sw></span>"+DLAB[f[1]]+", "+Math.abs(vs)+"% "+(vs>0?"harder":"easier")+" than a typical "+wd(d));}
 else P.push("<b>Difficulty:</b> not enough solves yet");
 }else P.push("<b>Difficulty:</b> no solve data");
+lkO.style.setProperty("--dcol",dcol);
 lkO.className="lk-line filled";
 lkO.innerHTML="<span class=lk-date>"+fmt(d)+"</span>"+P.map(function(p){return "<span>"+p+"</span>";}).join("");
 };
 lkI.addEventListener("input",look);lkI.addEventListener("change",look);look();
 }
+
+var calW=D.querySelector(".cal-wrap"),calH=D.getElementById("cal-hint"),calScrolled=false;
+function checkHint(){if(!calW||!calH)return;calH.hidden=(calScrolled||!calW.offsetParent||calW.scrollWidth<=calW.clientWidth+4);}
+if(calW){calW.addEventListener("scroll",function(){if(calW.scrollLeft>4){calScrolled=true;if(calH)calH.hidden=true;}},{passive:true});addEventListener("resize",checkHint);}
 
 var tabs=D.querySelectorAll(".tab"),panels={};
 D.querySelectorAll(".panel").forEach(function(p){panels[p.id]=p;});
@@ -480,6 +494,7 @@ tabs.forEach(function(t){t.setAttribute("aria-selected",String(t.getAttribute("d
 Object.keys(panels).forEach(function(k){panels[k].hidden=(k!=="panel-"+name);});
 if(push!==false&&"replaceState" in history)history.replaceState(null,"","#"+name);
 window.scrollTo(0,0);
+checkHint();
 }
 tabs.forEach(function(t){t.addEventListener("click",function(){activate(t.getAttribute("data-tab"));});});
 activate((location.hash||"#rebus").slice(1),false);
@@ -693,6 +708,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
       '<div class="cal-legend"><span>Easier</span>', sw("--cool", 82), sw("--cool", 40),
       '<span class="sw" style="background:var(--surface-2)"></span>', sw("--accent", 40), sw("--accent", 82),
       '<span>Harder</span></div>',
+      '<p class="cal-hint" id="cal-hint" hidden>Each row is one year. Scroll sideways to see the whole year <span class="cal-arrow" aria-hidden="true">&rarr;</span></p>',
       '<div class="cal-wrap">', heatmaps, '</div>',
       sprintf('<p class="cal-src">Difficulty from <a href="https://xwstats.com">XW Stats</a>, which aggregates community solve times. %s puzzles ran harder than their weekday norm, %s easier. Not every day has enough solves yet.</p>',
               comma(n_hard), comma(n_easy)),
