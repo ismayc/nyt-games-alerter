@@ -241,7 +241,18 @@ b{font-weight:600}
 a{color:var(--accent);text-underline-offset:2px}
 
 /* top bar + tabs */
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;margin-bottom:8px;background:color-mix(in srgb,var(--page) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;padding:12px 0;margin-bottom:8px;background:color-mix(in srgb,var(--page) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.archbar>label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.archbar input[type=date]{font:inherit;font-size:15px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.archbar input[type=date]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+.lk-line{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:2px 18px;font-size:13px;color:var(--ink-2);line-height:1.45}
+.lk-line:empty{display:none}
+.lk-line .lk-date{flex:1 1 100%;font-weight:600;color:var(--ink);font-size:13.5px}
+.lk-line b{color:var(--ink);font-weight:600}
+.lk-line mark{background:transparent;color:var(--accent);font-weight:600}
+.lk-line mark b{color:inherit}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:16px;color:var(--ink)}
 .brand .mark{flex:0 0 auto;color:var(--ink)}
 .tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px}
@@ -436,18 +447,28 @@ if(e.isIntersecting){steps.forEach(function(s){s.classList.remove("on");});e.tar
 steps.forEach(function(s){so.observe(s);});
 }
 
-var RB=window.RB_DATA,lkI=D.getElementById("lk-date"),lkO=D.getElementById("lk-result");
-if(RB&&lkI&&lkO){
-var fmt=function(iso){var dt=new Date(iso+"T00:00:00");return dt.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});};
+var LK=window.LK,lkI=D.getElementById("lk-date"),lkO=D.getElementById("lk-result");
+if(LK&&lkI&&lkO){
+var DLAB=["Very Easy","Easy","Average","Hard","Very Hard"];
+var fmt=function(iso){return new Date(iso+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});};
+var wd=function(iso){return new Date(iso+"T00:00:00").toLocaleDateString("en-US",{weekday:"long"});};
 var look=function(){
-var d=lkI.value;if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)){lkO.className="lk-result";lkO.innerHTML="";return;}
-var yes=false,html;
-if(d<RB.min||d>RB.max){html="<b>Outside the data.</b> Days run "+fmt(RB.min)+" to "+fmt(RB.max)+".";}
-else{var e=RB.days[d];
-if(e&&e[0]>0){yes=true;html="<b>Yes, a rebus.</b> "+fmt(d)+" had <b>"+e[0]+"</b> rebus square"+(e[0]==1?"":"s")+(e[1]>0?", plus "+e[1]+" alternate-answer square"+(e[1]==1?"":"s"):"")+".";}
-else if(e&&e[1]>0){html="<b>No rebus,</b> but a gimmick: "+fmt(d)+" had <b>"+e[1]+"</b> alternate-answer square"+(e[1]==1?"":"s")+".";}
-else{html="<b>No rebus.</b> "+fmt(d)+" was a clean grid.";}}
-lkO.className="lk-result"+(yes?" yes":"");lkO.innerHTML=html;};
+var d=lkI.value;if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)){lkO.className="lk-line";lkO.innerHTML="";return;}
+var P=[];
+if(d>=LK.cwMin&&d<=LK.cwMax){var e=LK.rebus[d];
+if(e&&e[0]>0)P.push("<mark><b>Crossword:</b> rebus, "+e[0]+" square"+(e[0]==1?"":"s")+(e[1]>0?" plus "+e[1]+" gimmick":"")+"</mark>");
+else if(e&&e[1]>0)P.push("<b>Crossword:</b> a gimmick, "+e[1]+" alternate-answer square"+(e[1]==1?"":"s"));
+else P.push("<b>Crossword:</b> clean grid, no rebus");
+}else P.push("<b>Crossword:</b> no data for this day");
+if(LK.wMin&&d>=LK.wMin&&d<=LK.wMax)P.push(LK.wordle[d]?"<mark><b>Wordle:</b> fit a tracked pattern</mark>":"<b>Wordle:</b> no pattern match");
+else P.push("<b>Wordle:</b> no puzzle tracked");
+if(LK.dMin&&d>=LK.dMin&&d<=LK.dMax){var f=LK.diff[d];
+if(f)P.push("<b>Difficulty:</b> "+DLAB[f[1]]+", "+Math.abs(f[0])+"% "+(f[0]>0?"harder":"easier")+" than a typical "+wd(d));
+else P.push("<b>Difficulty:</b> not enough solves yet");
+}else P.push("<b>Difficulty:</b> no solve data");
+lkO.className="lk-line filled";
+lkO.innerHTML="<span class=lk-date>"+fmt(d)+"</span>"+P.map(function(p){return "<span>"+p+"</span>";}).join("");
+};
 lkI.addEventListener("input",look);lkI.addEventListener("change",look);look();
 }
 
@@ -651,16 +672,6 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
   }, character(1))
   small_cw <- nrow(history[history$game %in% c("mini", "midi"), ])
 
-  # -- day lookup: embed only the days with a rebus or a gimmick, plus range ---
-  lk   <- daily[daily$rebus_cells > 0 | (!is.na(daily$gimmick_cells) & daily$gimmick_cells > 0), ]
-  lk_g <- ifelse(is.na(lk$gimmick_cells), 0L, lk$gimmick_cells)
-  lookup_json    <- paste0("{", paste(sprintf('"%s":[%d,%d]', lk$date, lk$rebus_cells, lk_g), collapse = ","), "}")
-  daily_min      <- min(daily$date)
-  daily_max      <- max(daily$date)
-  lookup_default <- max(rebuses$date)
-  data_script    <- sprintf('<script>window.RB_DATA={min:"%s",max:"%s",days:%s};</script>',
-                            daily_min, daily_max, lookup_json)
-
   # -- difficulty calendar (from data/difficulty.csv, scraped from XW Stats) ----
   diff_df   <- if (exists("read_difficulty")) tryCatch(read_difficulty(), error = function(e) NULL) else NULL
   have_diff <- !is.null(diff_df) && nrow(diff_df) && any(!is.na(diff_df$vs_weekday))
@@ -687,6 +698,30 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
               comma(n_hard), comma(n_easy)),
       '</section></div>')
   } else ""
+
+  # -- archive day lookup: compact per-game maps for the sticky top-of-page picker
+  # rebus: only days with a rebus or gimmick (absence within range = clean grid).
+  lk   <- daily[daily$rebus_cells > 0 | (!is.na(daily$gimmick_cells) & daily$gimmick_cells > 0), ]
+  lk_g <- ifelse(is.na(lk$gimmick_cells), 0L, lk$gimmick_cells)
+  rebus_json     <- paste0("{", paste(sprintf('"%s":[%d,%d]', lk$date, lk$rebus_cells, lk_g), collapse = ","), "}")
+  daily_min      <- min(daily$date)
+  daily_max      <- max(daily$date)
+  lookup_default <- max(rebuses$date)
+  # wordle: only days that fit a tracked pattern (absence within range = no match).
+  wl          <- wordle[wordle$hit %in% TRUE, ]
+  wordle_json <- paste0("{", paste(sprintf('"%s":1', wl$date), collapse = ","), "}")
+  wordle_min  <- if (nrow(wordle)) min(wordle$date) else ""
+  wordle_max  <- if (nrow(wordle)) max(wordle$date) else ""
+  # difficulty: every day with a reading, as [vs_weekday, label-code 0..4].
+  if (have_diff) {
+    dl        <- diff_df[!is.na(diff_df$vs_weekday), ]
+    dl_code   <- match(dl$difficulty, c("Very Easy", "Easy", "Average", "Hard", "Very Hard")) - 1L
+    diff_json <- paste0("{", paste(sprintf('"%s":[%d,%d]', dl$date, dl$vs_weekday, dl_code), collapse = ","), "}")
+    diff_min  <- min(dl$date); diff_max <- max(dl$date)
+  } else { diff_json <- "{}"; diff_min <- ""; diff_max <- "" }
+  data_script <- sprintf('<script>window.LK={cwMin:"%s",cwMax:"%s",wMin:"%s",wMax:"%s",dMin:"%s",dMax:"%s",rebus:%s,wordle:%s,diff:%s};</script>',
+                         daily_min, daily_max, wordle_min, wordle_max, diff_min, diff_max,
+                         rebus_json, wordle_json, diff_json)
 
   # -- stat bands --------------------------------------------------------------
   rebus_stats <- paste0(
@@ -729,12 +764,16 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     "<title>Rebus and Wordle History</title><style>", REPORT_CSS, "</style></head><body><main>")
 
   topbar <- paste0(
-    '<div class="topbar"><div class="brand">', MARK, '<span>NYT Games history</span></div>',
+    '<div class="topbar">',
+    '<div class="topbar-row"><div class="brand">', MARK, '<span>NYT Games history</span></div>',
     '<div class="tabs" role="tablist" aria-label="Choose a game">',
     '<button class="tab" role="tab" data-tab="rebus" aria-selected="true">Rebus</button>',
     '<button class="tab" role="tab" data-tab="wordle" aria-selected="false">Wordle</button>',
     if (have_diff) '<button class="tab" role="tab" data-tab="difficulty" aria-selected="false">Difficulty</button>' else "",
-    '</div></div>')
+    '</div></div>',
+    sprintf('<div class="archbar"><label for="lk-date">Playing the Archive? Check any day</label><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Check any date across all three games"><div id="lk-result" class="lk-line" role="status"></div></div>',
+            daily_min, daily_max, lookup_default),
+    '</div>')
 
   rebus_panel <- paste0(
     '<div class="panel" id="panel-rebus" role="tabpanel">',
@@ -744,12 +783,6 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
             span_years, one_in),
     '<div class="stats" data-reveal>', rebus_stats, "</div>",
     "</header>",
-
-    '<section><div class="section-head"><h2>Was there a rebus on a given day?</h2>',
-    sprintf('<p class="sub">Pick any date from %s to %s. The daily crossword is checked for a rebus (a square holding more than one letter) and for an alternate-answer gimmick.</p></div>',
-            nice_date(daily_min), nice_date(daily_max)),
-    sprintf('<div class="lookup"><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Pick a date"><div id="lk-result" class="lk-result" role="status"></div></div></section>',
-            daily_min, daily_max, lookup_default),
 
     '<section><div class="section-head"><h2>', esc(weekday_title), "</h2>",
     '<p class="sub">Share of daily crosswords with at least one rebus square, by day of the week. Puzzles get harder from Monday to Saturday; Sunday is larger and about Thursday difficulty.</p></div>',
