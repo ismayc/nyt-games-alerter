@@ -24,6 +24,12 @@ CROSSWORD_URL <- "https://www.nytimes.com/svc/crosswords/v6/puzzle/%s/%s.json"
 # URLs in the page head.
 SITE_URL <- "https://nyt-games-alerter.netlify.app"
 
+# The Netlify site the daily job publishes to. The id is public; the auth token
+# is a secret and must come from the environment as NETLIFY_AUTH_TOKEN (set it
+# in R/config.local.R on the publishing machine, never in the repo). Without a
+# token the daily deploy is skipped and the site refreshes on the monthly job.
+NETLIFY_SITE_ID <- Sys.getenv("NETLIFY_SITE_ID", "9221f80a-d120-4590-9509-fd160749e0b3")
+
 # Puzzle dates follow the machine's local calendar, which is Phoenix.
 LOCAL_TZ <- "America/Phoenix"
 

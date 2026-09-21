@@ -12,7 +12,7 @@ args <- commandArgs(trailingOnly = FALSE)
 file_arg <- sub("^--file=", "", args[grepl("^--file=", args)])
 REPO_ROOT <- normalizePath(file.path(dirname(file_arg), ".."))
 for (f in c("config.R", "detect.R", "fetch.R", "state.R", "notify.R", "run.R",
-            "history.R", "report.R")) {
+            "history.R", "report.R", "deploy.R")) {
   source(file.path(REPO_ROOT, "R", f))
 }
 
@@ -33,12 +33,14 @@ log_msg(sprintf("Run end: checked=[%s] findings=[%s] emailed=[%s] errors=%d",
                 paste(unlist(result$day$emailed), collapse = ","),
                 length(result$errors)))
 
-# History and the report come after the alert and can never block it. Skipped
-# for --dry-run and --date, which are for testing the alert.
+# History, the report, and the publish come after the alert and can never block
+# it. Skipped for --dry-run and --date, which are for testing the alert. The
+# deploy is best-effort and at most once a day; see R/deploy.R.
 if (!dry_run && length(date_arg) == 0) {
   tryCatch({
     update_history(date)
     build_report()
+    deploy_report(date)
   }, error = function(e) log_msg("[history] failed: ", conditionMessage(e)))
 }
 

@@ -32,14 +32,6 @@ nice_date <- function(date) {
   sprintf("%s %d, %s", format(d, "%B"), as.integer(format(d, "%d")), format(d, "%Y"))
 }
 
-# First of next month, for the "next refresh" note.
-first_of_next_month <- function(today = Sys.Date()) {
-  d <- as.Date(today)
-  m <- as.integer(format(d, "%m")); y <- as.integer(format(d, "%Y"))
-  if (m == 12L) { m <- 1L; y <- y + 1L } else m <- m + 1L
-  as.Date(sprintf("%04d-%02d-01", y, m))
-}
-
 # ---- summaries --------------------------------------------------------------
 
 weekday_summary <- function(rows) {
@@ -243,17 +235,6 @@ a{color:var(--accent);text-underline-offset:2px}
 /* top bar + tabs */
 .topbar{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;padding:12px 0;margin-bottom:8px;background:color-mix(in srgb,var(--page) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .topbar-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.archbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.archbar>label{font-size:13px;font-weight:600;color:var(--ink-2)}
-.archbar input[type=date]{font:inherit;font-size:15px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
-.archbar input[type=date]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
-.lk-line{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:2px 18px;font-size:13px;color:var(--ink-2);line-height:1.45}
-.lk-line:empty{display:none}
-.lk-line .lk-date{flex:1 1 100%;font-weight:600;color:var(--ink);font-size:13.5px}
-.lk-line b{color:var(--ink);font-weight:600}
-.lk-line mark{background:transparent;color:var(--accent);font-weight:600}
-.lk-line mark b{color:inherit}
-.lk-sw{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--line);background:var(--dcol,var(--surface-2));vertical-align:-1px;margin-right:5px}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-weight:600;font-size:16px;color:var(--ink)}
 .brand .mark{flex:0 0 auto;color:var(--ink)}
 .tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px}
@@ -262,6 +243,25 @@ a{color:var(--accent);text-underline-offset:2px}
 .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .panel[hidden]{display:none}
 .panel+.panel{border-top:1px solid var(--line)}
+
+/* day board: today at a glance, at the top of every tab */
+.dayboard{margin:18px 0 6px;padding:20px 22px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.db-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.db-eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.db-date{font-family:var(--serif);font-weight:600;font-size:clamp(23px,3.8vw,32px);line-height:1.08;color:var(--ink);margin-top:3px}
+.db-pick{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.db-pick input[type=date]{font:inherit;font-size:15px;padding:7px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink)}
+.db-pick input[type=date]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+.db-games{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.db-games:empty{display:none}
+.db-tile{padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.db-tile.hit{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}
+.db-game{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.db-val{margin-top:5px;font-size:18px;font-weight:600;color:var(--ink);line-height:1.25}
+.db-tile.hit .db-val{color:var(--accent)}
+.db-sub{margin-top:2px;font-size:13.5px;color:var(--ink-2)}
+.db-sw{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid var(--line);background:var(--dcol,var(--surface-2));vertical-align:-1px;margin-right:6px}
+@media(max-width:640px){.db-games{grid-template-columns:1fr}.db-top{align-items:flex-start}}
 
 /* hero */
 .hero{padding:64px 0 8px}
@@ -453,32 +453,38 @@ if(e.isIntersecting){steps.forEach(function(s){s.classList.remove("on");});e.tar
 steps.forEach(function(s){so.observe(s);});
 }
 
-var LK=window.LK,lkI=D.getElementById("lk-date"),lkO=D.getElementById("lk-result");
+var LK=window.LK,lkI=D.getElementById("lk-date"),lkO=D.getElementById("lk-result"),
+ebEl=D.getElementById("db-eyebrow"),dtEl=D.getElementById("db-date");
 if(LK&&lkI&&lkO){
 var DLAB=["Very Easy","Easy","Average","Hard","Very Hard"];
+var pad=function(n){return(n<10?"0":"")+n;};
+var todayISO=(function(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());})();
 var fmt=function(iso){return new Date(iso+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});};
 var wd=function(iso){return new Date(iso+"T00:00:00").toLocaleDateString("en-US",{weekday:"long"});};
+var thru=function(iso){return "through "+new Date(iso+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});};
+var tile=function(name,val,sub,hit){return `<div class="db-tile${hit?" hit":""}"><div class="db-game">${name}</div><div class="db-val">${val}</div>${sub?`<div class="db-sub">${sub}</div>`:""}</div>`;};
 var look=function(){
-var d=lkI.value;if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)){lkO.className="lk-line";lkO.innerHTML="";return;}
-var P=[];
+var d=lkI.value;if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)){lkO.innerHTML="";return;}
+if(ebEl)ebEl.textContent=(d===todayISO?"Today":wd(d));
+if(dtEl)dtEl.textContent=fmt(d);
+var T=[];
 if(d>=LK.cwMin&&d<=LK.cwMax){var e=LK.rebus[d];
-if(e&&e[0]>0)P.push("<mark><b>Crossword:</b> rebus, "+e[0]+" square"+(e[0]==1?"":"s")+(e[1]>0?" plus "+e[1]+" gimmick":"")+"</mark>");
-else if(e&&e[1]>0)P.push("<b>Crossword:</b> a gimmick, "+e[1]+" alternate-answer square"+(e[1]==1?"":"s"));
-else P.push("<b>Crossword:</b> clean grid, no rebus");
-}else P.push("<b>Crossword:</b> no data for this day");
-if(LK.wMin&&d>=LK.wMin&&d<=LK.wMax)P.push(LK.wordle[d]?"<mark><b>Wordle:</b> fit a tracked pattern</mark>":"<b>Wordle:</b> no pattern match");
-else P.push("<b>Wordle:</b> no puzzle tracked");
-var dcol="var(--surface-2)";
+if(e&&e[0]>0)T.push(tile("Crossword","Rebus",e[0]+" square"+(e[0]==1?"":"s")+(e[1]>0?" + "+e[1]+" gimmick":""),true));
+else if(e&&e[1]>0)T.push(tile("Crossword","Gimmick",e[1]+" alternate-answer square"+(e[1]==1?"":"s"),false));
+else T.push(tile("Crossword","Clean grid","no rebus",false));
+}else T.push(tile("Crossword","Not in yet",d>LK.cwMax?thru(LK.cwMax):"",false));
+if(LK.wMin&&d>=LK.wMin&&d<=LK.wMax)T.push(LK.wordle[d]?tile("Wordle","Pattern hit","fit a tracked pattern",true):tile("Wordle","No match","not a tracked pattern",false));
+else T.push(tile("Wordle","Not in yet",LK.wMax&&d>LK.wMax?thru(LK.wMax):"",false));
 if(LK.dMin&&d>=LK.dMin&&d<=LK.dMax){var f=LK.diff[d];
 if(f){var vs=f[0],mix=Math.min(88,Math.round(Math.abs(vs)*2.4)),hue=vs>0?"--accent":"--cool";
-dcol="color-mix(in srgb,var("+hue+") "+mix+"%,var(--surface-2))";
-P.push("<b>Difficulty:</b> <span class=lk-sw></span>"+DLAB[f[1]]+", "+Math.abs(vs)+"% "+(vs>0?"harder":"easier")+" than a typical "+wd(d));}
-else P.push("<b>Difficulty:</b> not enough solves yet");
-}else P.push("<b>Difficulty:</b> no solve data");
-lkO.style.setProperty("--dcol",dcol);
-lkO.className="lk-line filled";
-lkO.innerHTML="<span class=lk-date>"+fmt(d)+"</span>"+P.map(function(p){return "<span>"+p+"</span>";}).join("");
+var sw=`<span class="db-sw" style="--dcol:color-mix(in srgb,var(${hue}) ${mix}%,var(--surface-2))"></span>`;
+T.push(tile("Difficulty",sw+DLAB[f[1]],Math.abs(vs)+"% "+(vs>0?"harder":"easier")+" than a typical "+wd(d),false));}
+else T.push(tile("Difficulty","Pending","not enough solves yet",false));
+}else T.push(tile("Difficulty","Not in yet",LK.dMax&&d>LK.dMax?thru(LK.dMax):"",false));
+lkO.innerHTML=T.join("");
 };
+if(todayISO>=LK.cwMin)lkI.max=todayISO;
+lkI.value=todayISO;
 lkI.addEventListener("input",look);lkI.addEventListener("change",look);look();
 }
 
@@ -722,7 +728,6 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
   rebus_json     <- paste0("{", paste(sprintf('"%s":[%d,%d]', lk$date, lk$rebus_cells, lk_g), collapse = ","), "}")
   daily_min      <- min(daily$date)
   daily_max      <- max(daily$date)
-  lookup_default <- max(rebuses$date)
   # wordle: only days that fit a tracked pattern (absence within range = no match).
   wl          <- wordle[wordle$hit %in% TRUE, ]
   wordle_json <- paste0("{", paste(sprintf('"%s":1', wl$date), collapse = ","), "}")
@@ -757,13 +762,12 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
       stat(i$n, paste("Fit", p), sprintf("1 in %d", i$one_in))
     }, character(1)), collapse = ""))
 
-  built    <- nice_date(Sys.Date())
-  next_ref <- nice_date(first_of_next_month())
+  built <- nice_date(Sys.Date())
 
   head <- paste0(
     '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
-    '<meta name="description" content="A running history of rebuses in the New York Times crossword and Wordle answers that fit a chosen pattern. Refreshed monthly.">',
+    '<meta name="description" content="A running history of rebuses in the New York Times crossword and Wordle answers that fit a chosen pattern. Updated daily.">',
     sprintf('<link rel="canonical" href="%s/">', SITE_URL),
     sprintf('<link rel="icon" href="%s">', FAVICON),
     sprintf('<link rel="apple-touch-icon" href="%s">', FAVICON),
@@ -787,9 +791,24 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     '<button class="tab" role="tab" data-tab="wordle" aria-selected="false">Wordle</button>',
     if (have_diff) '<button class="tab" role="tab" data-tab="difficulty" aria-selected="false">Difficulty</button>' else "",
     '</div></div>',
-    sprintf('<div class="archbar"><label for="lk-date">Playing the Archive? Check any day</label><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Check any date across all three games"><div id="lk-result" class="lk-line" role="status"></div></div>',
-            daily_min, daily_max, lookup_default),
     '</div>')
+
+  # The day board sits at the top of every tab: today's date is filled in and
+  # the three games looked up on load (JS sets the picker to the real current
+  # day, so a monthly build still opens on today). Server-rendered date and
+  # value are a sensible no-JS fallback within the data range.
+  today_full <- paste0(format(Sys.Date(), "%A"), ", ", nice_date(Sys.Date()))
+  dayboard <- paste0(
+    '<section class="dayboard" aria-label="Puzzle results for a day">',
+    '<div class="db-top"><div class="db-when">',
+    '<div class="db-eyebrow" id="db-eyebrow">Today</div>',
+    sprintf('<div class="db-date" id="db-date">%s</div>', esc(today_full)),
+    '</div>',
+    sprintf('<label class="db-pick" for="lk-date"><span>Look up another day</span><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Look up any date across all three games"></label>',
+            daily_min, daily_max, daily_max),
+    '</div>',
+    '<div class="db-games" id="lk-result" role="status"></div>',
+    '</section>')
 
   rebus_panel <- paste0(
     '<div class="panel" id="panel-rebus" role="tabpanel">',
@@ -832,7 +851,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     sprintf("<li>Coverage: %s of the %s calendar days from %s to %s have a daily crossword on record%s.</li>",
             comma(nrow(daily)), comma(expected), nice_date(min(daily$date)), nice_date(max(daily$date)),
             if (nrow(daily) < expected) sprintf(", so %s days are missing", comma(expected - nrow(daily))) else ""),
-    sprintf("<li>Refreshed on the first of each month. Last built %s; next refresh %s.</li>", built, next_ref),
+    sprintf("<li>Updated daily, with a full rebuild on the first of each month. Last updated %s.</li>", built),
     "</ul></section>",
     "</div>")
 
@@ -886,7 +905,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     "<li>The gripe counts (repeats, rare letters, look-alike families) are computed from the answers on record; the family sizes use the original Wordle answer list.</li>",
     "<li>Cross-checked: stored answers were spot-checked against public Wordle archives, and 97% appear in the original answer word list (the rest are real words the NYT added later).</li>",
     sprintf("<li>The patterns live in one place, WORDLE_PATTERNS, currently %s.</li>", esc(and_list(patterns))),
-    sprintf("<li>Refreshed on the first of each month. Last built %s; next refresh %s.</li>", built, next_ref),
+    sprintf("<li>Updated daily, with a full rebuild on the first of each month. Last updated %s.</li>", built),
     "</ul></section>",
     "</div>")
 
@@ -902,10 +921,10 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     '<li><a href="https://github.com/ismayc/nyt-games-alerter">Source on GitHub</a></li>',
     '<li>with <a href="https://claude.com/claude-code">Claude</a></li>',
     '</ul></div></div>',
-    sprintf('<div class="foot-note"><span>Refreshed on the first of each month. Last built %s.</span><span>Answers are shown only after their day has passed.</span></div>', built),
+    sprintf('<div class="foot-note"><span>Updated daily. Last updated %s.</span><span>Answers are shown only after their day has passed.</span></div>', built),
     '</footer>')
 
-  page <- paste0(head, topbar, rebus_panel, wordle_panel, difficulty_panel, footer,
+  page <- paste0(head, topbar, dayboard, rebus_panel, wordle_panel, difficulty_panel, footer,
                  '<div id="tip" role="status"><b></b><span></span></div>',
                  "</main>", data_script, "<script>", REPORT_JS, "</script></body></html>")
 
