@@ -483,9 +483,15 @@ else T.push(tile("Difficulty","Pending","not enough solves yet",false));
 }else T.push(tile("Difficulty","Not in yet",LK.dMax&&d>LK.dMax?thru(LK.dMax):"",false));
 lkO.innerHTML=T.join("");
 };
-if(todayISO>=LK.cwMin)lkI.max=todayISO;
-lkI.value=todayISO;
-lkI.addEventListener("input",look);lkI.addEventListener("change",look);look();
+var inRange=function(v){return v>=lkI.min&&v<=lkI.max;};
+var clamp=function(v){return v<lkI.min?lkI.min:v>lkI.max?lkI.max:v;};
+lkI.value=clamp(todayISO);
+/* The native popup already greys out days outside min/max. A typed date can
+   still land outside them (a partial year reads as year 0002), so wait until
+   the field loses focus to snap it back rather than fighting the typing. */
+var onEdit=function(){var v=lkI.value;if(!v||inRange(v))look();};
+var snap=function(){var v=lkI.value;if(!v)lkI.value=clamp(todayISO);else if(!inRange(v))lkI.value=clamp(v);look();};
+lkI.addEventListener("input",onEdit);lkI.addEventListener("change",onEdit);lkI.addEventListener("blur",snap);look();
 }
 
 var calW=D.querySelector(".cal-wrap"),calH=D.getElementById("cal-hint"),calScrolled=false;
@@ -740,6 +746,10 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     diff_json <- paste0("{", paste(sprintf('"%s":[%d,%d]', dl$date, dl$vs_weekday, dl_code), collapse = ","), "}")
     diff_min  <- min(dl$date); diff_max <- max(dl$date)
   } else { diff_json <- "{}"; diff_min <- ""; diff_max <- "" }
+  # The top-of-page picker spans every date at least one game has a result for.
+  lk_bounds <- c(daily_min, daily_max, wordle_min, wordle_max, diff_min, diff_max)
+  lk_bounds <- lk_bounds[nzchar(lk_bounds)]
+  lk_min <- min(lk_bounds); lk_max <- max(lk_bounds)
   data_script <- sprintf('<script>window.LK={cwMin:"%s",cwMax:"%s",wMin:"%s",wMax:"%s",dMin:"%s",dMax:"%s",rebus:%s,wordle:%s,diff:%s};</script>',
                          daily_min, daily_max, wordle_min, wordle_max, diff_min, diff_max,
                          rebus_json, wordle_json, diff_json)
@@ -805,7 +815,7 @@ build_report <- function(history_path = HISTORY_FILE, out = REPORT_FILE) {
     sprintf('<div class="db-date" id="db-date">%s</div>', esc(today_full)),
     '</div>',
     sprintf('<label class="db-pick" for="lk-date"><span>Look up another day</span><input type="date" id="lk-date" min="%s" max="%s" value="%s" aria-label="Look up any date across all three games"></label>',
-            daily_min, daily_max, daily_max),
+            lk_min, lk_max, lk_max),
     '</div>',
     '<div class="db-games" id="lk-result" role="status"></div>',
     '</section>')
