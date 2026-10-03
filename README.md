@@ -33,7 +33,9 @@ it had a rebus.
 
 The analysis is refreshed on the first of each month by a GitHub Actions
 workflow (`.github/workflows/monthly.yml`), which fetches any missing recent
-days, rebuilds the report, commits it, and deploys `report/` to Netlify. It
+days, rebuilds the report, and commits it. Netlify is connected to this repo
+through its Git integration and deploys `report/` on every push to `main`
+(`netlify.toml` holds the publish directory and headers). The workflow
 runs in the cloud, so the published page updates even when the Mac is off. The
 daily launchd job on the Mac keeps its own local copy current and sends the
 email alerts.
@@ -79,7 +81,7 @@ scripts/
   build_report.R       rebuild the report from the CSVs, no network
   refresh_and_build.R  fetch missing days, top up difficulty, rebuild (used by CI)
 .github/workflows/
-  monthly.yml         first-of-month cloud refresh, commit, and Netlify deploy
+  monthly.yml         first-of-month cloud refresh and commit (Netlify deploys the push)
 launchd/
   com.chesterismay.nyt-games-alert.plist  daily alert + rebuild on the Mac
 data/
@@ -128,17 +130,12 @@ cp launchd/com.chesterismay.nyt-games-alert.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.chesterismay.nyt-games-alert.plist
 ```
 
-The monthly publish runs in GitHub Actions, not on the Mac. It needs one
-repository secret, a Netlify personal access token from
-[Netlify user settings](https://app.netlify.com/user/applications#personal-access-tokens):
-
-```bash
-gh secret set NETLIFY_AUTH_TOKEN --repo ismayc/nyt-games-alerter
-```
-
-The site id is public and already in the workflow. Trigger a run by hand with
+The monthly publish runs in GitHub Actions, not on the Mac, and needs no
+secrets: the workflow commits the rebuilt `report/`, and Netlify's Git
+integration deploys that push. Trigger a run by hand with
 `gh workflow run "Monthly refresh"`; it also runs on the first of each month.
-The initial deploy was done once with `netlify deploy --prod --dir report`.
+Before the repo was linked, deploys went out from CI with
+`netlify deploy --prod --dir report`.
 
 Test it without waiting for the schedule:
 

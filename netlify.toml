@@ -1,0 +1,29 @@
+# Netlify config for nyt-games-alerter.netlify.app
+#
+# The site is connected through Netlify's own Git integration, so Netlify
+# deploys report/ on each push to main. The monthly GitHub Actions job
+# (.github/workflows/monthly.yml) rebuilds report/index.html and commits it,
+# and that push is what triggers the deploy. There is deliberately no second
+# deploy path from CI: two deploy paths for one site is a way to ship the
+# older of them.
+#
+# report/index.html is committed, so the build only checks that the page and
+# its social card are present and non-empty before publishing.
+
+[build]
+  publish = "report"
+  command = "test -s report/index.html && test -s report/og.png"
+
+# The page is regenerated wholesale each month, so a stale copy is worse than
+# a refetch. The social card can be cached harder.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/og.png"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

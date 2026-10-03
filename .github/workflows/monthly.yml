@@ -1,12 +1,10 @@
 name: Monthly refresh
 
-# Rebuilds the analysis and redeploys the site on the first of each month,
-# independent of the Mac that sends the daily alerts. Fetches any missing recent
-# days from the NYT endpoints, rebuilds report/index.html, commits the changes,
-# and deploys report/ to Netlify.
-#
-# Requires one repository secret: NETLIFY_AUTH_TOKEN (a Netlify personal access
-# token). The site id is public and set below.
+# Rebuilds the analysis on the first of each month, independent of the Mac that
+# sends the daily alerts. Fetches any missing recent days from the NYT endpoints,
+# rebuilds report/index.html, and commits the changes. The push triggers the
+# Netlify deploy through Netlify's Git integration (see netlify.toml), so this
+# workflow needs no Netlify secret.
 
 on:
   schedule:
@@ -19,9 +17,6 @@ permissions:
 concurrency:
   group: monthly-refresh
   cancel-in-progress: false
-
-env:
-  NETLIFY_SITE_ID: 9221f80a-d120-4590-9509-fd160749e0b3
 
 jobs:
   refresh:
@@ -58,7 +53,3 @@ jobs:
             git push
           fi
 
-      - name: Deploy to Netlify
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: npx --yes netlify-cli@26 deploy --prod --dir report --site "$NETLIFY_SITE_ID"
